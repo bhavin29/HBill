@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Google Cloud API Demo</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+    <style>
+        .dvOcr-input
+        {
+            float: left;
+            width: 48%;
+            margin-right: 2%;
+            margin-bottom: 20px;
+        }
+
+        .dvOcr-output
+        {
+            float: left;
+            clear: both;
+            width: 48%;
+            margin-right: 2%;
+        }
+
+            .dvOcr-output div
+            {
+                float: left;
+                width: 48%;
+                margin-right: 2%;
+                margin-bottom: 5px;
+            }
+
+        .dvNlp-input
+        {
+            float: left;
+            width: 48%;
+            margin-left: 2%;
+            margin-bottom: 20px;
+            /*margin-top: 20px;*/
+        }
+
+        .dvNlp-output
+        {
+            float: left;
+            width: 48%;
+            margin-left: 2%;
+        }
+
+            .dvNlp-output div
+            {
+                float: left;
+                width: 48%;
+                margin-right: 2%;
+                margin-bottom: 5px;
+            }
+
+        #txtplainText
+        {
+            width: 98%;
+            height: 60px;
+            resize: none;
+        }
+
+        #txtResultOCRArea, #txtResultNLPArea
+        {
+            width: 98%;
+            height: 450px;
+            resize: none;
+        }
+
+        h2
+        {
+            float: left;
+        }
+
+            h2 b
+            {
+                font-size: 18px;
+                font-weight: normal;
+            }
+
+        .clear
+        {
+            clear: both;
+        }
+
+        .bordered-div
+        {
+            border-style: solid;
+            border-width: 0.5px;
+            border-color: #bbbdc2;
+            padding: 20px;
+        }
+
+        .button-input
+        {
+            padding: 10px;
+        }
+
+        .btn
+        {
+            display: inline-block;
+            padding: 6px 12px;
+            margin-bottom: 0;
+            font-size: 14px;
+            font-weight: 400;
+            line-height: 1.42857143;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: middle;
+            -ms-touch-action: manipulation;
+            touch-action: manipulation;
+            cursor: pointer;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            background-image: none;
+            border: 1px solid transparent;
+            border-radius: 4px;
+        }
+
+        .btn-primary
+        {
+            color: #fff;
+            background-color: #337ab7;
+            border-color: #2e6da4;
+        }
+
+            .btn-primary.focus, .btn-primary:focus
+            {
+                color: #fff;
+                background-color: #286090;
+                border-color: #122b40;
+            }
+
+            .btn-primary:hover
+            {
+                color: #fff;
+                background-color: #286090;
+                border-color: #204d74;
+            }
+
+        .btn-default
+        {
+            color: #333;
+            background-color: #fff;
+            border-color: #ccc;
+        }
+
+            .btn-default.focus, .btn-default:focus
+            {
+                color: #333;
+                background-color: #e6e6e6;
+                border-color: #8c8c8c;
+            }
+
+            .btn-default:hover
+            {
+                color: #333;
+                background-color: #e6e6e6;
+                border-color: #adadad;
+            }
+    </style>
+</head>
+<body>
+    <div style="float: left; width: 100%">
+        <div class="dvOcr-input">
+            <h2>Step 1 <b>Select file to upload</b></h2>
+            <form id="frmOCR" action="">
+                <div class="bordered-div clear">
+                    <input type="file" id="fileUpload" name="fileField">
+                </div>
+                <div class="button-input">
+                    <input type="submit" name="submit" class="btn btn-primary" value="Process OCR">
+                    <input id="btnClearOCR" type="button" class="btn btn-default" name="name" value="Clear" onclick="clearOCRInputs();" />
+                </div>
+            </form>
+        </div>
+        <div id="dvNLPInput" class="dvNlp-input" style="display:none">
+            <h2>Step 2 <b>OCR Result Plain Text</b></h2>
+            <textarea id="txtplainText"></textarea>
+            <div class="button-input">
+                <input type="button" name="button" class="btn btn-primary" value="Process NL" onclick="requestToCloudNLP();">
+                <input id="btnClearNLP" type="button" class="btn btn-default" name="name" value="Clear" onclick="clearNLPInputs();" />
+            </div>
+        </div>
+        <div class="dvOcr-output">
+            <code style="white-space: pre" id="results_OCR"></code>
+            <div>
+                <b>Google OCR API Result:</b>
+            </div>
+            <textarea id="txtResultOCRArea"></textarea>
+        </div>
+        <div id="dvNLPOutput" class="dvNlp-output" style="display:none">
+            <code style="white-space: pre" id="result_NLP"></code>
+            <div>
+                <b>Google NL API Result : </b>
+            </div>
+            <textarea id="txtResultNLPArea"></textarea>
+        </div>
+
+    </div>
+    <script>
+        var apiKey = 'AIzaSyDktVqtJXX8UJJrLVtPw2UaIZvRmMEx-gI';
+
+        var Vision_URL = 'https://vision.googleapis.com/v1/images:annotate?key=' + window.apiKey;
+        var NLP_URL = 'https://language.googleapis.com/v1beta1/documents:analyzeEntities?key=' + window.apiKey;
+
+        $(document).ready(function () {
+            $('#frmOCR').on('submit', uploadFiles);
+        });
+
+        function uploadFiles(event) {
+            event.preventDefault();
+
+            var file = $('#frmOCR [name=fileField]')[0].files[0];
+            var reader = new FileReader();
+            reader.onloadend = processFile;
+            reader.readAsDataURL(file);
+        }
+
+        function processFile(event) {
+            var content = event.target.result;
+            sendFileToCloudVision(content.replace('data:image/jpeg;base64,', ''));
+        }
+
+        function sendFileToCloudVision(content) {
+            var request = {
+                requests: [{
+                    image: {
+                        content: content
+                    },
+                    features: [{
+                        type: "TEXT_DETECTION",
+                        maxResults: 200
+                    }]
+                }]
+            };
+
+            $('#results_OCR').text('Loading...');
+            $.post({
+                url: Vision_URL,
+                data: JSON.stringify(request),
+                contentType: 'application/json'
+            }).fail(function (jqXHR, textStatus, errorThrown) {
+                $('#results_OCR').text('ERRORS: ' + textStatus + ' ' + errorThrown);
+            }).done(displayOCRResult);
+        }
+
+        function displayOCRResult(data) {
+            var contents = JSON.stringify(data, null, 4);
+            $('#txtResultOCRArea').val(contents);
+            if (contents != null && contents != '') {
+                if (data.responses[0].textAnnotations[0].description != null) {
+                    $('#txtplainText').val(JSON.stringify(data.responses[0].textAnnotations[0].description));
+                }
+            }
+
+            $('#dvNLPInput').show();
+            $('#dvNLPOutput').show();
+            $('#results_OCR').text('');
+            var evt = new Event('results-OCR-displayed');
+            evt.results = contents;
+            document.dispatchEvent(evt);
+        }
+
+        function requestToCloudNLP() {
+            var strinputstring = $('#txtplainText').val();
+
+            if (strinputstring != null && strinputstring != '') {
+                var requestBody = {
+                    document: {
+                        type: "PLAIN_TEXT",
+                        content: strinputstring
+                    }
+                };
+
+                $('#result_NLP').text('Loading...');
+                $.post({
+                    url: NLP_URL,
+                    data: JSON.stringify(requestBody),
+                    contentType: 'application/json'
+                }).fail(function (jqXHR, textStatus, errorThrown) {
+                    $('#result_NLP').text('ERRORS: ' + textStatus + ' ' + errorThrown);
+                }).done(displayNLPResult);
+            }
+            else {
+                alert("Please enter the Plain text to process NLP!")
+            }
+        }
+
+        function clearNLPInputs() {
+            $('#txtResultNLPArea').val('');
+            $('#result_NLP').text('');
+            $('#txtplainText').val('');
+        }
+
+        function clearOCRInputs() {
+            $('#fileUpload').val('');
+            $('#results_OCR').text('');
+            $('#txtResultOCRArea').val('');
+            $('#dvNLPInput').hide();
+            $('#dvNLPOutput').hide();
+        }
+
+        function displayNLPResult(data) {
+            var contents = JSON.stringify(data, null, 4);
+            $('#txtResultNLPArea').val(contents);
+            $('#result_NLP').text('');
+
+            var evt = new Event('results-NLP-displayed');
+            evt.results = contents;
+            document.dispatchEvent(evt);
+        }
+  </script>
+</body>
+</html>
